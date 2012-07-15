@@ -1,31 +1,30 @@
 package plo.dbbd.server.resource;
 
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 
 import plo.dbbd.server.helpers.JSonMapper;
 import plo.dbbd.server.model.Book;
 import plo.dbbd.server.utils.Caches;
+
+import java.util.Collection;
 
 @Path("/book")
 public class BookResource {
 
     
     @GET
+    @Path("/isbn/{isbn}")
     @Produces("application/json")
-    public String getBookByIsbn(@QueryParam("isbn") String isbn) {
+    public String getBookByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
         Caches.cacheBooks.put(isbn, book);
         return JSonMapper.generateJson(book);
     }
 
-    @POST
+    @PUT
+    @Path("/isbn/{isbn}")
     @Produces("application/json")
-    public String saveBookByIsbn(@QueryParam("isbn") String isbn) {
+    public String saveBookByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
         book.save();
         Caches.cacheBooks.put(isbn, book);
@@ -33,11 +32,20 @@ public class BookResource {
     }
 
     @DELETE
+    @Path("/isbn/{isbn}")
     @Produces("application/json")
-    public String deleteBookByIsbn(@QueryParam("isbn") String isbn) {
+    public String deleteBookByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
         book.delete();
         return JSonMapper.generateJson(book);
+    }
+
+    @GET
+    @Path("/owned/")
+    @Produces("application/json")
+    public String getAllOwnedBooks() {
+        Collection<Book> books = Book.findAll();
+        return JSonMapper.generateJson(books);
     }
 
     

@@ -3,13 +3,7 @@ package plo.dbbd.server.resource;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 
 import plo.dbbd.server.amazon.ItemLookup;
 import plo.dbbd.server.helpers.JSonMapper;
@@ -21,34 +15,31 @@ import plo.dbbd.server.utils.Caches;
 public class SerieResource {
 
     @GET
+    @Path("/isbn/{isbn}")
     @Produces("application/json;charset=utf-8")
-    public String buildSerieFromIsbn(@QueryParam("isbn") String isbn) {
+    public String buildSerieByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
 
-        Serie serie = new Serie();
-        serie.authors = book.ItemAttributes.authors;
-        serie.title = book.ItemAttributes.Title.substring(0, book.ItemAttributes.Title.indexOf(","));
-        serie.books = new ArrayList<Book>();
-        serie.books.add(book);
+        Serie serie = new Serie(book);
+
 
         return JSonMapper.generateJson(serie);
     }
 
-    @POST
+    @PUT
+    @Path("/isbn/{isbn}")
     @Produces("application/json;charset=utf-8")
-    public String createSerieFromIsbn(@QueryParam("isbn") String isbn) {
+    public String createSerieByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
         
         String title = book.ItemAttributes.Title.substring(0, book.ItemAttributes.Title.indexOf(","));
 
         Serie serie = Caches.loadSerie(title);
         if (serie == null) {
-            serie = new Serie();
+            serie = new Serie(book);
 
-            serie.authors = book.ItemAttributes.authors;
-            serie.title = book.ItemAttributes.Title.substring(0, book.ItemAttributes.Title.indexOf(","));
-            serie.books = new ArrayList<Book>();
-            serie.books.add(book);
+        }
+        if(!serie.isPresentInDb()){
             serie.save();
             Caches.cacheSeries.put(serie.title, serie);
         }
@@ -58,8 +49,9 @@ public class SerieResource {
     }
 
     @DELETE
+    @Path("/title/{title}")
     @Produces("application/json;charset=utf-8")
-    public String deleteSerieFromTitle(@QueryParam("title") String title) {
+    public String deleteSerieByTitle(@PathParam("title") String title) {
         Serie serie = Caches.loadSerie(title);
 
         serie.delete();
@@ -67,22 +59,21 @@ public class SerieResource {
         return JSonMapper.generateJson(serie);
     }
 
-    // V3
     @GET
-    @Path("/amazon/{title}")
+    @Path("/title/{title}/all")
     @Produces("application/json")
-    public String getSeriesFirstBook(@PathParam("title") String title) {
-        Serie series = Caches.cacheSeries.get(title);
-        Book book = series.books.get(0);
-        Collection<Book> books = ItemLookup.getInstance().lookupCollectionByTitleAndPublisher(book.ItemAttributes.Title, book.ItemAttributes.Manufacturer);
+    public String getAllBooksInSerieByTitle(@PathParam("title") String title) {
+        Serie series = Caches.loadSerie(title);
+        Collection<Book> books = ItemLookup.getInstance().lookupAllBooksInSerieByTitle(series.title);
         // Remove already present in db
-        Collection<Book> filteredBooks = new ArrayList<Book>();
-        for (Book amazonBook : books) {
-            if (!series.books.contains(amazonBook)) {
-                filteredBooks.add(amazonBook);
-            }
-        }
-        return JSonMapper.generateJson(filteredBooks);
+        //Collection<Book> filteredBooks = new ArrayList<Book>();
+        //for (Book amazonBook : books) {
+        //    if (!series.books.contains(amazonBook)) {
+        //        filteredBooks.add(amazonBook);
+        //    }
+        //}
+        //return JSonMapper.generateJson(filteredBooks);
+        return JSonMapper.generateJson(books);
     }
 
     @GET
@@ -90,11 +81,7 @@ public class SerieResource {
     @Produces("application/json")
     public String saveSeriesByIsbn(@PathParam("isbn") String isbn) {
         Book book = Caches.loadBook(isbn);
-        Serie series = new Serie();
-        series.authors = book.ItemAttributes.authors;
-        series.title = book.ItemAttributes.Title.substring(0, book.ItemAttributes.Title.indexOf(","));
-        series.books = new ArrayList<Book>();
-        series.books.add(book);
+        Serie series = new Serie(book);
         Caches.cacheSeries.put(series.title, series);
         series.save();
         book.delete();

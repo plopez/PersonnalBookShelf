@@ -1,5 +1,12 @@
 package plo.dbbd.server.amazon;
 
+import com.fasterxml.jackson.xml.XmlMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import plo.dbbd.server.model.Book;
+import plo.dbbd.server.model.ItemLookupResponse;
+import plo.dbbd.server.model.Serie;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,14 +15,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import plo.dbbd.server.model.Book;
-import plo.dbbd.server.model.ItemLookupResponse;
-
-import com.fasterxml.jackson.xml.XmlMapper;
 
 public class ItemLookup {
 
@@ -67,7 +66,7 @@ public class ItemLookup {
 
         ItemLookupResponse itemLookUpResponse = mapXml(xmlBackFromAmazon);
 
-       if (itemLookUpResponse != null) {
+        if (itemLookUpResponse != null) {
             return itemLookUpResponse.Items.books;
         }
 
@@ -77,7 +76,7 @@ public class ItemLookup {
     private static Map<String, String> fillSearchParameterIsbn(String isbn) {
         Map<String, String> params = fillCommonSearchParameters();
         params.put("Operation", "ItemLookup");
-        
+
         params.put("ItemId", isbn);
         // UPN pour les disques
         params.put("IdType", "ISBN");
@@ -85,6 +84,7 @@ public class ItemLookup {
         return params;
     }
 
+    // TODO refactor
     private static Map<String, String> fillPowerSearchParameters(String title, String publisher) {
         Map<String, String> params = fillCommonSearchParameters();
         StringBuffer powerCriteria = new StringBuffer();
@@ -92,7 +92,7 @@ public class ItemLookup {
 //        powerCriteria.append(author);
 //        powerCriteria.append(" and ");
         powerCriteria.append("title-begins:");
-        powerCriteria.append(title.substring(0, title.indexOf(",") -1));
+        powerCriteria.append(title.substring(0, title.indexOf(",") - 1));
         powerCriteria.append(" and ");
         powerCriteria.append("publisher:");
         powerCriteria.append(publisher);
@@ -100,7 +100,20 @@ public class ItemLookup {
 
         params.put("Power", powerCriteria.toString());
         params.put("Operation", "ItemSearch");
-        
+
+        return params;
+    }
+
+    // TODO refactor
+    private static Map<String, String> fillTitleParameters(String title) {
+        Map<String, String> params = fillCommonSearchParameters();
+        StringBuffer powerCriteria = new StringBuffer();
+        powerCriteria.append("title:");
+        powerCriteria.append(title+"*");
+
+        params.put("Power", powerCriteria.toString());
+        params.put("Operation", "ItemSearch");
+
         return params;
     }
 
@@ -170,5 +183,55 @@ public class ItemLookup {
             }
         }
         return xmlAsString.toString();
+    }
+
+    public Serie lookupSerieByTitle(String title) {
+        SignedRequestsHelper helper = createAuthenticatedHelper();
+
+        Map<String, String> params = fillTitleParameters(title);
+
+        String requestUrl = helper.sign(params);
+
+        LOGGER.debug(requestUrl);
+
+        String xmlBackFromAmazon = readXmlFromUrl(requestUrl);
+
+        LOGGER.debug(xmlBackFromAmazon);
+
+        ItemLookupResponse itemLookUpResponse = mapXml(xmlBackFromAmazon);
+
+        if (itemLookUpResponse != null) {
+            int i = 0;
+            Book book;
+            do {
+                book = itemLookUpResponse.Items.books.get(i);
+                i++;
+            } while (book.ItemAttributes.Title.indexOf(",") == 0);
+            return new Serie(book);
+        }
+
+        return null;
+    }
+
+    public Collection<Book> lookupAllBooksInSerieByTitle(String title) {
+        SignedRequestsHelper helper = createAuthenticatedHelper();
+
+        Map<String, String> params = fillTitleParameters(title);
+
+        String requestUrl = helper.sign(params);
+
+        LOGGER.debug(requestUrl);
+
+        String xmlBackFromAmazon = readXmlFromUrl(requestUrl);
+
+        LOGGER.debug(xmlBackFromAmazon);
+
+        ItemLookupResponse itemLookUpResponse = mapXml(xmlBackFromAmazon);
+
+        if (itemLookUpResponse != null) {
+            return itemLookUpResponse.Items.books;
+        }
+
+        return null;
     }
 }

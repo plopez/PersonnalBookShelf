@@ -35,6 +35,9 @@ public class Caches {
         if (serie == null) {
             serie = Serie.findByTitle(title);
         }
+        if (serie == null) {
+            serie = ItemLookup.getInstance().lookupSerieByTitle(title);
+        }
         
         return serie;
     }

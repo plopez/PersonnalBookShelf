@@ -85,4 +85,15 @@ public class Serie {
         this.id=null;
     }
 
+    public Serie(Book book){
+        this.authors = book.ItemAttributes.authors;
+        this.title = book.ItemAttributes.Title.substring(0, book.ItemAttributes.Title.indexOf(","));
+        this.books = new ArrayList<Book>();
+        this.books.add(book);
+    }
+
+    public Serie(){
+        super();
+    }
+
 }
